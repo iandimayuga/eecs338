@@ -48,8 +48,6 @@ int main() {
         cleanup(EXIT_FAILURE);
     }
     data->icub = data->sicub = data->survival = data->istaff = data->sistaff = 0;
-    enum staff_state staff[NUM_STAFF];
-    data->staff = staff;
 
     //create semaphore group
     semkey = semget(IPC_PRIVATE, NUM_SEM, IPC_CREAT | 0666);
@@ -99,7 +97,7 @@ int main() {
             cleanup(EXIT_FAILURE);
         } else if( !staff_id[i]) {
             seed(); //new seed for each member for decision making
-            staff( shared, arrive, i);
+            staff( shared, arrive);
         }
     }
 
@@ -118,7 +116,7 @@ int main() {
 
     //detach shared memory
     if( shmdt( data) < 0) {
-        perror( "Error detaching shared memory after simulation");
+        perror( "Error detaching shared memory after init");
         cleanup(EXIT_FAILURE);
     }
 
@@ -138,7 +136,7 @@ void initCounts( int semkey) {
     union semun sem_union;
     unsigned short counters[2];
     counters[MUTEX] = 1;
-    counters[SURVIVAL] = NUM_STAFF;
+    counters[SURVIVAL] = 0;
     sem_union.array = counters;
 
     // set counts as specified
@@ -235,6 +233,12 @@ void printout( const char* s, ...) {
     va_end(va);
 
     printf("%02d00: [%d] %s\n", time, pid, buffer);
+    fflush(stdout);
+}
+
+void printdata( struct daycare* data) {
+    printf("\tICubs: %d\tIStaff: %d\tSICubs: %d\tSIStaff: %d\tSurvival: %d\n\n",
+    data->icub, data->istaff, data->sicub, data->sistaff, data->survival);
     fflush(stdout);
 }
 

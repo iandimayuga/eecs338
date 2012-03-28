@@ -6,7 +6,7 @@
 
 #include "staff.h"
 
-void staff( struct shared_info info, int arrive, int id) {
+void staff( struct shared_info info, int arrive) {
     //semaphore instructions
     struct sembuf wait_mutex = {info.mutex, WAIT, 0};
     struct sembuf signal_mutex = {info.mutex, SIGNAL, 0};
@@ -23,38 +23,85 @@ void staff( struct shared_info info, int arrive, int id) {
     //wait until the actual arrival time
     while( simTime() < arrive);
 
+    //wait(mutex): CRITICAL SECTION BEGIN
+    semaphore( wait_mutex, info.semkey, "wait(mutex)");
+
+    //arrive
+    data->survival++;
+    printout("Staff has arrived in Survival Hall.");
+    printdata(data);
+
+    //signal(mutex): CRITICAL SECTION END
+    semaphore( signal_mutex, info.semkey, "signal(mutex)");
+
     while( simTime() < TIME_LEAVE) {
-
-        //wait(mutex): CRITICAL SECTION BEGIN
-        semaphore( wait_mutex, info.semkey, "wait(mutex)");
-
-        //arrive
-        data->survival++;
-        data->staff[id] = HALL;
-        printout("Staff has arrived in Survival Hall. Count: %d.", data->survival);
-
-        //signal(mutex): CRITICAL SECTION END
-        semaphore( signal_mutex, info.semkey, "signal(mutex)");
 
         //wait(survival)
         semaphore( wait_survival, info.semkey, "wait(survival)");
 
-        //Time to work! Check endurance while busywaiting
-        while( rand() % ENDURANCE > 0 && simTime() < TIME_LEAVE);
-
         if( simTime() < TIME_LEAVE) {
-            //Need a break. Call colleague
+            bool working = true;
+            //Time to work!
+            while( working) {
+                // Check endurance while busywaiting
+                while( rand() % ENDURANCE > 0 && simTime() < TIME_LEAVE) {
+                    sleep(1);
+                }
 
-            //wait(mutex): CRITICAL SECTION BEGIN
-            semaphore( wait_mutex, info.semkey, "wait(mutex)");
+                if( simTime() < TIME_LEAVE) {
+                    //Need a break. Call colleague
 
-            if( data->survival > 0) {
+                    //wait(mutex): CRITICAL SECTION BEGIN
+                    semaphore( wait_mutex, info.semkey, "wait(mutex)");
 
+                    if( data->survival > 0) {
+                        //signal(survival)
+                        semaphore( signal_survival, info.semkey, "signal(survival)");
+                        working = false;
+
+                        printout("Staff swapping out.");
+                        printdata(data);
+
+                    } else {
+                        working = true; //can't go on break!
+                    }
+
+                    //signal(mutex): CRITICAL SECTION END
+                    semaphore( signal_mutex, info.semkey, "signal(mutex)");
+                } else {
+                    //Day is over. Head back to Survival.
+                    //wait(mutex): CRITICAL SECTION BEGIN
+                    semaphore( wait_mutex, info.semkey, "wait(mutex)");
+
+                    if(working) data->survival++;
+                    if( data->istaff > 0) data->istaff--;
+                    else if( data->sistaff > 0) data->sistaff--;
+
+                    printout("Day is over. Staff returning to Hall..");
+                    printdata(data);
+
+                    //signal(mutex): CRITICAL SECTION END
+                    semaphore( signal_mutex, info.semkey, "signal(mutex)");
+                    working = false;
+                }
             }
-
-            //signal(mutex): CRITICAL SECTION END
-            semaphore( signal_mutex, info.semkey, "signal(mutex)");
         }
     }
+    
+    
+    //wait(mutex): CRITICAL SECTION BEGIN
+    semaphore( wait_mutex, info.semkey, "wait(mutex)");
+
+    if(data->survival > 0) {
+        //make sure the rest of the staff know to leave
+        semaphore( signal_survival, info.semkey, "signal(survival)");
+        data->survival--;
+        printout("Staff leaving for the day.");
+        printdata(data);
+    }
+
+    //signal(mutex): CRITICAL SECTION END
+    semaphore( signal_mutex, info.semkey, "signal(mutex)");
+
     _exit(EXIT_SUCCESS);
 }

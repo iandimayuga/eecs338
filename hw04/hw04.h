@@ -50,8 +50,6 @@
 //maximum char buffer
 #define BUF_LEN 1024
 
-enum staff_state {HALL = 0, ISTAFF, SISTAFF, NUM_STATE};
-
 //union semun copied from semctl man page
 union semun {
     int              val;    /* Value for SETVAL */
@@ -67,7 +65,6 @@ struct shared_info {
     int semkey; // semaphore group key
     int mutex; // index for mutex semaphore
     int survival; // index for survival semaphore
-    
 };
 
 // shared state data
@@ -77,7 +74,6 @@ struct daycare {
     int survival; // number of staff in Survival
     int istaff; // number of staff in ICub room
     int sistaff; // number of staff in SICub room
-    enum staff_state* staff; // array of staff states
 };
 
 // gives simulation time in hours
@@ -94,6 +90,9 @@ void seed();
 
 //print with pid and timestamp
 void printout( const char* s, ...);
+
+//print the room counts
+void printdata( struct daycare* data);
 
 //semaphore operation for processes to call
 //error is for error message in case of failure

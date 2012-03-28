@@ -15,9 +15,10 @@ void sicub( struct shared_info info, int arrive, int depart) {
 }
 
 void cub( struct shared_info info, int arrive, int depart, bool icub) {
+    while( simTime() < TIME_ARRIVE);
     // child will not come to daycare today
     if( arrive >= depart) {
-        printout("This %s will not arrive today.", icub ? "ICub" : "SICub");
+        printout("This %s will not arrive today.\n", icub ? "ICub" : "SICub");
         _exit(EXIT_SUCCESS);
     }
 
@@ -43,10 +44,8 @@ void cub( struct shared_info info, int arrive, int depart, bool icub) {
     if( icub) data->icub++;
     else data->sicub++;
 
-    printout("%s has arrived. Room count: %d. Staff in room: %d.", 
-          icub ? "ICub" : "SICub", 
-          icub ? data->icub : data->sicub, 
-          icub ? data->istaff : data->sistaff);
+    printout("%s has arrived.", icub ? "ICub" : "SICub");
+    printdata(data);
 
     //detect new staff need
     if( icub ?
@@ -54,6 +53,7 @@ void cub( struct shared_info info, int arrive, int depart, bool icub) {
       (data->sicub > data->sistaff * SICUB_PER_STAFF)) {
 
         printout("Staff needed in %s room!", icub ? "ICub" : "SICub");
+        printdata(data);
 
         //signal(survival)
         semaphore( signal_survival, info.semkey, "signal(survival)");
@@ -63,10 +63,8 @@ void cub( struct shared_info info, int arrive, int depart, bool icub) {
         if( icub) data->istaff++;
         else data->sistaff++;
 
-        printout("Staff has entered %s room. Staff in room: %d. Staff in survival: %d.", 
-              icub ? "ICub" : "SICub", 
-              icub ? data->istaff : data->sistaff,
-              data->survival);
+        printout("Staff has entered %s room.", icub ? "ICub" : "SICub");
+        printdata(data);
     }
 
     //signal(mutex): CRITICAL SECTION END
@@ -82,10 +80,8 @@ void cub( struct shared_info info, int arrive, int depart, bool icub) {
     if( icub) data->icub--;
     else data->sicub--;
 
-    printout("%s has departed. Room count: %d. Staff in room: %d.", 
-          icub ? "ICub" : "SICub", 
-          icub ? data->icub : data->sicub, 
-          icub ? data->istaff : data->sistaff);
+    printout("%s has departed.", icub ? "ICub" : "SICub");
+    printdata(data);
 
     //signal(mutex)
     semaphore( signal_mutex, info.semkey, "signal(mutex)");
