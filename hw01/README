@@ -1,0 +1,9 @@
+Ian Dimayuga (icd3)
+EECS 338 Assignment 1
+Supplementary Questions
+
+1. The "counter" variable does not decrement along with the loop index. This is because the counter is copied directly each time a process is forked, and any changes to that variable within a forked process do not affect the state of the parent process. On the other hand, the state of the "index" is changed by the parent between forks, which is why it does count down as expected.
+
+2. Even though sleep() adds a little leeway so that one child can wait for the other, it in no way guarantees that they will execute in order. There is no actual communication between the processes, so if one ends up taking longer than expected (for example, the printf() or fflush() operations), then they may fall out of step.
+
+3. The fflush() is necessary because it ensures the stream buffer prints to the console as soon as it is called, ideally while the other child is sleeping. If we did not call fflush, we are at the mercy of the buffer's decision when to print, which increases the chances of out-of-order output.
