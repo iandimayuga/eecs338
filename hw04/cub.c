@@ -9,3 +9,7 @@
 void icub( struct shared_info info) {
 
 }
+
+void sicub( struct shared_info info) {
+
+}

@@ -40,17 +40,23 @@ struct shared_info {
 
 // shared state data
 struct daycare_data {
-    int icub_count; //number of ICubs
-    int sicub_count; //number of SICubs
-    int survival_count; //number of staff in Survival
-    int istaff_count; //number of staff in ICub room
-    int sistaff_count; //number of staff in SICub room
+    int icub_count; // number of ICubs
+    int sicub_count; // number of SICubs
+    int survival_count; // number of staff in Survival
+    int istaff_count; // number of staff in ICub room
+    int sistaff_count; // number of staff in SICub room
 };
 
-//will give simulation time in hours
+// gives simulation time in hours
 int simTime();
 
-//clean up and exit
+// initialize semaphore counts
+void initCounts( int semkey);
+
+// clean up and exit
 void cleanup( int status);
+
+// seed rand
+void seed();
 
 #endif //HW04_H
