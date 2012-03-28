@@ -1,0 +1,9 @@
+Ian Dimayuga (icd3)
+EECS 338 Assignment 4
+
+run "make" then "hw04".
+
+The output is in the following format:
+
+time: [pid] output
+        ICubs: n        IStaff: n       SICubs: n       SIStaff: n      Survival: n
