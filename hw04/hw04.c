@@ -4,17 +4,6 @@
  * hw04.c
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
-#include <sys/shm.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <time.h>
-#include <unistd.h>
-
 #include "hw04.h"
 #include "cub.h"
 #include "staff.h"
@@ -28,9 +17,9 @@ int shmid = -1;
 int semkey = -1;
 
 //process ids
-pid_t[] icub_id  = malloc( NUM_ICUB * sizeof( pid_t));
-pid_t[] sicub_id = malloc( NUM_SICUB * sizeof( pid_t));
-pid_t[] staff_id = malloc( NUM_STAFF * sizeof( pid_t));
+pid_t icub_id[NUM_ICUB];
+pid_t sicub_id[NUM_SICUB];
+pid_t staff_id[NUM_STAFF];
 
 // Initialize shared memory and semaphores
 // Fork all Cub and Staff processes
@@ -39,16 +28,28 @@ pid_t[] staff_id = malloc( NUM_STAFF * sizeof( pid_t));
 int main() {
     //seed the random number generator
     seed();
-    
+
     //set the start time
     initialT = time(NULL);
+    
+    printout("Simulation starting.");
 
     //create shared memory segment
-    shmid = shmget( IPC_PRIVATE, sizeof(struct daycare_data), IPC_CREAT | 0666);
+    shmid = shmget( IPC_PRIVATE, sizeof(struct daycare), IPC_CREAT | 0666);
     if( shmid < 0) {
         perror( "Error creating shared memory");
         cleanup(EXIT_FAILURE);
     }
+
+    //initialize daycare
+    struct daycare* data = shmat( shmid, (void*) 0, 0);
+    if( data < 0) {
+        perror( "Error attaching shared memory for init");
+        cleanup(EXIT_FAILURE);
+    }
+    data->icub = data->sicub = data->survival = data->istaff = data->sistaff = 0;
+    enum staff_state staff[NUM_STAFF];
+    data->staff = staff;
 
     //create semaphore group
     semkey = semget(IPC_PRIVATE, NUM_SEM, IPC_CREAT | 0666);
@@ -69,30 +70,36 @@ int main() {
     //fork children
     int i;
     for( i = 0; i < NUM_ICUB; i++) {
+        int arrive = TIME_ARRIVE + rand() % (TIME_LEAVE + 1 - TIME_ARRIVE);
+        int depart = arrive + rand() % (TIME_LEAVE + 1 - arrive);
         icub_id[i] = fork();
         if( icub_id[i] < 0) {
             perror("Error forking icub process " + i);
             cleanup(EXIT_FAILURE);
         } else if( !icub_id[i]) {
-            icub( shared);
+            icub( shared, arrive, depart);
         }
     }
     for( i = 0; i < NUM_SICUB; i++) {
+        int arrive = TIME_ARRIVE + rand() % (TIME_LEAVE + 1 - TIME_ARRIVE);
+        int depart = arrive + rand() % (TIME_LEAVE + 1 - arrive);
         sicub_id[i] = fork();
         if( sicub_id[i] < 0) {
             perror("Error forking sicub process " + i);
             cleanup(EXIT_FAILURE);
         } else if( !sicub_id[i]) {
-            sicub( shared);
+            sicub( shared, arrive, depart);
         }
     }
     for( i = 0; i < NUM_STAFF; i++) {
+        int arrive = TIME_START + rand() % (TIME_ARRIVE + 1 - TIME_START);
         staff_id[i] = fork();
         if( staff_id[i] < 0) {
             perror("Error forking staff process " + i);
             cleanup(EXIT_FAILURE);
         } else if( !staff_id[i]) {
-            staff( shared);
+            seed(); //new seed for each member for decision making
+            staff( shared, arrive, i);
         }
     }
 
@@ -101,13 +108,19 @@ int main() {
     for( i = 0; i < NUM_ICUB + NUM_SICUB + NUM_STAFF; i++) {
         int s;
         wait( &s);
-        status ||= s;
+        status = status || WEXITSTATUS(s);
     }
 
     //mark children as finished
     for( i = 0; i < NUM_ICUB; i++) icub_id[i] = -1;
     for( i = 0; i < NUM_SICUB; i++) sicub_id[i] = -1;
     for( i = 0; i < NUM_STAFF; i++) staff_id[i] = -1;
+
+    //detach shared memory
+    if( shmdt( data) < 0) {
+        perror( "Error detaching shared memory after simulation");
+        cleanup(EXIT_FAILURE);
+    }
 
     cleanup( status);
 
@@ -129,7 +142,7 @@ void initCounts( int semkey) {
     sem_union.array = counters;
 
     // set counts as specified
-    if( semctl(semkey, 0, SETALL, sem_union) < 0);
+    if( semctl(semkey, 0, SETALL, sem_union) < 0) {
         perror("Error setting semaphore counts");
         cleanup(EXIT_FAILURE);
     }
@@ -141,8 +154,9 @@ void cleanup( int status) {
     //kill all remaining icub processes
     for( i = 0; i < NUM_ICUB; i++) {
         if( icub_id[i] > 0 ) {
-            if( kill( staff_id[i], SIGKILL) < 0);
-                perror("Error killing icub process id " + staff_id[i] + ". Try a manual signal.");
+            if( kill( icub_id[i], SIGKILL) < 0) {
+                fprintf( stderr, "Error killing icub process id %d. Try a manual signal. %s\n",
+                    icub_id[i], strerror(errno));
                 status = EXIT_FAILURE;
             } else wait(NULL);
         }
@@ -151,8 +165,9 @@ void cleanup( int status) {
     //kill all remaining sicub processes
     for( i = 0; i < NUM_SICUB; i++) {
         if( sicub_id[i] > 0 ) {
-            if( kill( staff_id[i], SIGKILL) < 0);
-                perror("Error killing sicub process id " + staff_id[i] + ". Try a manual signal.");
+            if( kill( sicub_id[i], SIGKILL) < 0) {
+                fprintf( stderr, "Error killing sicub process id %d. Try a manual signal. %s\n",
+                    sicub_id[i], strerror(errno));
                 status = EXIT_FAILURE;
             } else wait(NULL);
         }
@@ -161,8 +176,9 @@ void cleanup( int status) {
     //kill all remaining staff processes
     for( i = 0; i < NUM_STAFF; i++) {
         if( staff_id[i] > 0 ) {
-            if( kill( staff_id[i], SIGKILL) < 0);
-                perror("Error killing staff process id " + staff_id[i] + ". Try a manual signal.");
+            if( kill( staff_id[i], SIGKILL) < 0) {
+                fprintf( stderr, "Error killing staff process id %d. Try a manual signal. %s\n",
+                    staff_id[i], strerror(errno));
                 status = EXIT_FAILURE;
             } else wait(NULL);
         }
@@ -184,6 +200,9 @@ void cleanup( int status) {
         }
     }
 
+    printf("Simulation complete.\n");
+    fflush(stdout);
+
     exit( status);
 }
 
@@ -203,4 +222,25 @@ void seed() {
         cleanup( EXIT_FAILURE);
     }
     srand(*((int *)randdata));
+}
+
+void printout( const char* s, ...) {
+    int time = simTime();
+    pid_t pid = getpid();
+    va_list va;
+    va_start( va, s);
+
+    char buffer[BUF_LEN];
+    vsprintf( buffer, s, va);
+    va_end(va);
+
+    printf("%02d00: [%d] %s\n", time, pid, buffer);
+    fflush(stdout);
+}
+
+void semaphore( struct sembuf op, int semkey, char* error) {
+    if( semop( semkey, &op, 1) < 0) {
+        perror(error);
+        _exit(EXIT_FAILURE);
+    }
 }

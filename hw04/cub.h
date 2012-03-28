@@ -9,7 +9,9 @@
 #ifndef CUB_H
 #define CUB_H
 
-void icub( struct shared_info info);
-void sicub( struct shared_info info);
+void icub( struct shared_info info, int arrive, int depart);
+void sicub( struct shared_info info, int arrive, int depart);
+
+void cub( struct shared_info info, int arrive, int depart, bool icub);
 
 #endif //CUB_H

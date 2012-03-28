@@ -9,6 +9,6 @@
 #ifndef STAFF_H
 #define STAFF_H
 
-void staff( struct shared_info info);
+void staff( struct shared_info info, int arrive);
 
 #endif //STAFF_H

@@ -1,10 +1,10 @@
 # Ian Dimayuga (icd3)
 CC = gcc
-SOURCE = hw04.c
+SOURCE = hw04.c cub.c staff.c
 OUTPUT = hw04
 
 all:
-	$(CC) -o $(OUTPUT) $(SOURCE)
+	$(CC) -Wall -o $(OUTPUT) $(SOURCE)
 
 clean:
 	rm -f $(OUTPUT)
