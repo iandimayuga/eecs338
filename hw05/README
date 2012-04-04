@@ -1,6 +1,6 @@
 Ian Dimayuga
 EECS 338 Assignment 5
 
-Run "ant" and then "java -jar main.jar [customers]"
+Run "ant" and then "./main.jar [customers]"
 
 Customers is an optional parameter which defaults to 1000.
