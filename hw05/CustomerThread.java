@@ -19,7 +19,7 @@ public class CustomerThread extends Thread implements Customer {
     @Override
     public void run() {
         //record time
-        m_WaitTime = System.currentTimeMillis();
+        m_WaitTime = m_DoneTime = System.currentTimeMillis();
 
         //enter queue and wait
         m_Queue.enterQueue(this);

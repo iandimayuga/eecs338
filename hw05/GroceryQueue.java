@@ -23,7 +23,7 @@ public abstract class GroceryQueue implements Queue {
      * the simulation before any server or customer thread
      * is started.
      */
-    public void addServer(Server server) {
+    public synchronized void addServer(Server server) {
         m_Queues.put(server, new LinkedList<Customer>());
     }
 
@@ -31,7 +31,7 @@ public abstract class GroceryQueue implements Queue {
      * Called by customer threads immediately before they
      * wait for service.
      */
-    public abstract void enterQueue(Customer customer) {
+    public synchronized void enterQueue(Customer customer) {
         this.laneChoice().add(customer);
         this.notifyAll();
     }
@@ -48,13 +48,11 @@ public abstract class GroceryQueue implements Queue {
      * or until the Queue is closed. If the queue has been closed,
      * this function returns null.
      */
-    public Customer nextCustomer(Server server) throws InterruptedException {
+    public synchronized Customer nextCustomer(Server server) throws InterruptedException {
         LinkedList<Customer> customers = m_Queues.get(server);
         Customer ret = customers.poll();
         while( !m_Closed && ret == null) {
-            try {
-                this.wait();
-            } catch( InterruptedException e) {}
+            this.wait();
             ret = customers.poll();
         }
         return ret;
@@ -65,7 +63,7 @@ public abstract class GroceryQueue implements Queue {
      * return null, and any servers still waiting for customers
      * should be notified.
      */
-    public void close() {
+    public synchronized void close() {
         this.m_Closed = true;
         this.notifyAll();
     }

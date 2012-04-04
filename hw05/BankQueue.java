@@ -25,7 +25,7 @@ public class BankQueue implements Queue {
      * the simulation before any server or customer thread
      * is started.
      */
-    public void addServer(Server server) {
+    public synchronized void addServer(Server server) {
         m_Servers.add(server);
     }
 
@@ -45,12 +45,10 @@ public class BankQueue implements Queue {
      * or until the Queue is closed. If the queue has been closed,
      * this function returns null.
      */
-    public synchronized Customer nextCustomer(Server server) {
+    public synchronized Customer nextCustomer(Server server) throws InterruptedException {
         Customer ret = m_Customers.poll();
         while( !m_Closed && ret == null) {
-            try {
-                this.wait();
-            } catch( InterruptedException e) {}
+            this.wait();
             ret = m_Customers.poll();
         }
         return ret;
