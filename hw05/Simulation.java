@@ -18,12 +18,35 @@ public class Simulation {
     public static void main(String[] args) {
         // TODO: Run the simulation with each of the three
         // queues, and print out the results.
+        
+        try {
+            s_Customers = Integer.parseInt( args[0]);
+        } catch( Exception e) {}
+
+        System.out.println("Simulation start...");
+
         BankQueue bank = new BankQueue();
         try {
-            System.out.printf("Bank Queue: %f seconds\n", simulate(bank));
+            System.out.printf("Bank Queue: %f milliseconds\n", simulate(bank));
         } catch( InterruptedException e) {
             System.out.println("ERROR: Bank Queue interrupted.");
         }
+
+        GroceryShortest grocShort = new GroceryShortest();
+        try {
+            System.out.printf("Grocery Queue (shortest): %f milliseconds\n", simulate(grocShort));
+        } catch( InterruptedException e) {
+            System.out.println("ERROR: Grocery Queue (shortest) interrupted.");
+        }
+
+        GroceryRandom grocRand = new GroceryRandom();
+        try {
+            System.out.printf("Grocery Queue (random): %f milliseconds\n", simulate(grocRand));
+        } catch( InterruptedException e) {
+            System.out.println("ERROR: Grocery Queue (random) interrupted.");
+        }
+        
+        System.out.println("Simulation complete.");
     }
 
     /**
@@ -51,11 +74,11 @@ public class Simulation {
         // between starting each customer.
         /**********************************************/
         //Create customer threads
+
         CustomerThread[] customers = new CustomerThread[s_Customers];
         for( int i = 0; i < s_Customers; i++) {
             CustomerThread customer = new CustomerThread( queue);
             customers[i] = customer;
-            queue.addCustomer( customer);
         }
         for( CustomerThread customer : customers) {
             //wait for the customer to arrive
@@ -70,10 +93,9 @@ public class Simulation {
         // totalWaitTime.
         /**********************************************/
         for( CustomerThread customer : customers) {
-            try {
+                customer.interrupt();
                 customer.join();
                 totalWaitTime += customer.getWaitTime();
-            } catch( InterruptedException e) {}
         }
 
         // Close the queue

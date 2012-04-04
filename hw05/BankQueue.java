@@ -14,7 +14,7 @@ public class BankQueue implements Queue {
 
     public BankQueue() {
         m_Servers = new ArrayList<Server>();
-        m_Customers = new ArrayList<Customer>();
+        m_Customers = new LinkedList<Customer>();
         m_Closed = false;
     }
     /**
@@ -45,13 +45,15 @@ public class BankQueue implements Queue {
      * or until the Queue is closed. If the queue has been closed,
      * this function returns null.
      */
-    public synchronized Customer nextCustomer(Server server) throws InterruptedException {
-        if( m_Closed) return null;
-
-        while( m_Customers.isEmpth()) {
-            this.wait();
+    public synchronized Customer nextCustomer(Server server) {
+        Customer ret = m_Customers.poll();
+        while( !m_Closed && ret == null) {
+            try {
+                this.wait();
+            } catch( InterruptedException e) {}
+            ret = m_Customers.poll();
         }
-        return m_Customers.remove();
+        return ret;
     }
 
     /**
@@ -59,7 +61,7 @@ public class BankQueue implements Queue {
      * return null, and any servers still waiting for customers
      * should be notified.
      */
-    public void close() {
+    public synchronized void close() {
         this.m_Closed = true;
         this.notifyAll();
     }
