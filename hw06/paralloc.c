@@ -19,6 +19,7 @@
 #include "paralloc.h"
 #include "list.h"
 
+//list of allocated blocks
 linked_list** arenas;
 
 /*
@@ -35,13 +36,10 @@ void heap_init() {
   int i;
   for( i = 0; i < NUM_ARENAS; i++) {
     arenas[i] = malloc( sizeof( linked_list));
-    list_node* block = malloc( sizeof( list_node));
     //partition the heap
-    block->start = i * (HEAPSIZE / NUM_ARENAS);
-    block->end = (i + 1) * (HEAPSIZE / NUM_ARENAS);
-
-    //add to list
-    listAdd( arenas[i], block, 0);
+    arenas[i]->start = i * (HEAPSIZE / NUM_ARENAS);
+    arenas[i]->end = (i + 1) * (HEAPSIZE / NUM_ARENAS);
+    arenas[i]->head = 0;
   }
 }
 
@@ -62,48 +60,53 @@ heap_ptr_t paralloc(size_t amt) {
   }
   pid_t pid = getpid();
   int arena = pid % NUM_ARENAS;
-  int offset = -1;
 
   //BEGIN CRITICAL SECTION
   semaphore(wait_mutex[arena]);
 
+  int offset = 0;
   linked_list* list = arenas[arena];
   list_node* current = list->head;
   list_node* prev = 0;
+
   //first-fit algorithm
   while( current) {
-    int blocksize = current->end - current->start;
-    if( blocksize >= amt) {
-      //we found a fit, set the offset
-      offset = current->start;
+    int freesize = current->start - offset;
+    if( freesize >= amt) {
+      //we found a fit, need to make a node
+      list_node* add = malloc( sizeof( list_node));
+      add->start = offset;
+      add->end = offset + amt;
+      add->next = 0;
 
-      //find how much remaining in the block
-      int remainder = blocksize - amt;
-      if( remainder) {
-        //don't need to remove the node, just shift the start over
-        current->start += amt;
-      } else {
-        //no remainder, must remove node
-        listRemove( list, current, prev);
-        free(current);
-      }
-      break;
+      //add node to list
+      listAdd( list, add, prev);
+
+      semaphore( signal_mutex[arena]);
+      return offset;
     }
+    offset = current->end;
     prev = current;
     current = current->next;
+  }
+
+  if( list->end - offset >= amt) {
+    list_node* add = malloc( sizeof( list_node));
+    add->start = offset;
+    add->end = offset + amt;
+    add->next = 0;
+    listAdd( list, add, prev);
+
+    semaphore( signal_mutex[arena]);
+    return offset;
   }
 
   semaphore(signal_mutex[arena]);
   //END CRITICAL SECTION
 
-  if( offset < 0) {
-    //out of memory error
-    errno = ENOMEM;
-    return -1;
-  }
-
-  return offset;
-  
+  //out of memory error
+  errno = ENOMEM;
+  return -1;
 }
 
 /*
@@ -133,14 +136,20 @@ int parfree(heap_ptr_t offset) {
   list_node* prev = 0;
   //first-fit algorithm
   while( current) {
-    if( current->start <= offset && current->end > offset) {
-      //block is already free, this is bad!
-      errno = EINVAL;
-      return -1;
+    if( current->start == offset) {
+      //this is the block to be freed, remove from linked list
+      listRemove( list, current, prev);
+      free(current);
+
+      //because the list only keeps track of allocated blocks,
+      //this algorithm automatically coalesces.
+
+      semaphore( signal_mutex[arena]);
+      return 0;
     }
     if( current->start > offset) {
-      if( prev && prev->end == offset)
-
+      //this offset has not been allocated, this is bad!
+      break;
     }
     prev = current;
     current = current->next;
@@ -149,6 +158,7 @@ int parfree(heap_ptr_t offset) {
   semaphore(signal_mutex[arena]);
   //END CRITICAL SECTION
 
-  return 0;
+  errno = EINVAL;
+  return -1;
 }
 

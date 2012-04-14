@@ -143,6 +143,10 @@ void sem_create() {
   //initialize semaphore arrays
   wait_mutex = malloc( NUM_ARENAS * sizeof( struct sembuf));
   signal_mutex = malloc( NUM_ARENAS * sizeof( struct sembuf));
+  
+  //initialize counts
+  union semun sem_union;
+  unsigned short counters[NUM_ARENAS];
   int i;
   for( i = 0; i < NUM_ARENAS; i++) {
     //initialize each semaphore
@@ -152,7 +156,18 @@ void sem_create() {
     signal_mutex[i].sem_num = i;
     signal_mutex[i].sem_op = SIGNAL;
     signal_mutex[i].sem_flg = 0;
+    counters[i] = 1;
   }
+
+  // specify semaphore counts
+  sem_union.array = counters;
+
+  // set counts as specified
+  if( semctl(semkey, 0, SETALL, sem_union) < 0) {
+      perror("Error setting semaphore counts");
+      cleanup(EXIT_FAILURE);
+  }
+
 }
 
 /* void semaphore()

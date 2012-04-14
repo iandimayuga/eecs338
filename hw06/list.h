@@ -11,6 +11,8 @@ typedef struct list_node_struct {
 } list_node;
 
 typedef struct {
+    int start; //inclusive
+    int end; //exclusive
     list_node* head;
 } linked_list;
 
