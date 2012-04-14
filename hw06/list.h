@@ -4,19 +4,19 @@
  * Definitions for a Linked List implementation of a memory heap
  */
 
-struct list_node {
+typedef struct list_node_struct {
     int start; //inclusive
     int end; //exclusive
-    struct list_node* next;
-};
+    struct list_node_struct* next;
+} list_node;
 
-struct linked_list {
-    struct list_node* head;
-};
+typedef struct {
+    list_node* head;
+} linked_list;
 
-//prev is optional, leave NULL if adding to head of list
-void add( struct linked_list* list, struct list_node* add, struct list_node* prev);
+//prev is optional, leave as 0 if adding to head of list
+void listAdd( linked_list* list, list_node* add, list_node* prev);
 
-//prev is optional, leave NULL if remove is the head of list
-void remove( struct linked_list* list, struct list_node* remove, struct list_node* prev);
+//prev is optional, leave as 0 if remove is the head of list
+void listRemove( linked_list* list, list_node* remove, list_node* prev);
 

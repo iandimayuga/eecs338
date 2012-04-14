@@ -6,7 +6,7 @@
 
 #include "list.h"
 
-void add( struct linked_list* list, struct list_node* add, struct list_node* prev) {
+void listAdd( linked_list* list, list_node* add, list_node* prev) {
     if( prev) {
         add->next = prev->next;
         prev->next = add;
@@ -16,8 +16,8 @@ void add( struct linked_list* list, struct list_node* add, struct list_node* pre
     }
 }
 
-void remove( struct linked_list* list, struct list_node* remove, struct list_node* prev) {
+void listRemove( linked_list* list, list_node* remove, list_node* prev) {
     if( prev) prev->next = remove->next;
     else list->head = remove->next;
-    remove->next = NULL;
+    remove->next = 0;
 }

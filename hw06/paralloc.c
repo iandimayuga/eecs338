@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
@@ -18,7 +19,7 @@
 #include "paralloc.h"
 #include "list.h"
 
-struct linked_list* arenas;
+linked_list** arenas;
 
 /*
  * void heap_init()
@@ -28,15 +29,19 @@ struct linked_list* arenas;
  */
 void heap_init() {
   //initialize pointer array
-  arenas = malloc( sizeof(struct linked_list) * NUM_ARENAS);
+  arenas = malloc( sizeof( linked_list*) * NUM_ARENAS);
 
   //initialize each arena's linked list
   int i;
   for( i = 0; i < NUM_ARENAS; i++) {
-    list_node* block = malloc( sizeof(struct list_node));
+    arenas[i] = malloc( sizeof( linked_list));
+    list_node* block = malloc( sizeof( list_node));
     //partition the heap
     block->start = i * (HEAPSIZE / NUM_ARENAS);
     block->end = (i + 1) * (HEAPSIZE / NUM_ARENAS);
+
+    //add to list
+    listAdd( arenas[i], block, 0);
   }
 }
 
@@ -50,34 +55,55 @@ void heap_init() {
  *    Allocates the requested amount of memory from the shared memory segment.
  */
 heap_ptr_t paralloc(size_t amt) { 
+  if( amt <= 0) {
+    //bad argument
+    errno = EINVAL;
+    return -1;
+  }
   pid_t pid = getpid();
   int arena = pid % NUM_ARENAS;
+  int offset = -1;
 
   //BEGIN CRITICAL SECTION
   semaphore(wait_mutex[arena]);
 
-  list_node* current = arenas[arena].head;
-  list_node* prev = NULL;
+  linked_list* list = arenas[arena];
+  list_node* current = list->head;
+  list_node* prev = 0;
   //first-fit algorithm
-  while( current->next) {
+  while( current) {
     int blocksize = current->end - current->start;
     if( blocksize >= amt) {
-      //we found a fit
+      //we found a fit, set the offset
+      offset = current->start;
+
+      //find how much remaining in the block
       int remainder = blocksize - amt;
       if( remainder) {
         //don't need to remove the node, just shift the start over
         current->start += amt;
       } else {
         //no remainder, must remove node
+        listRemove( list, current, prev);
+        free(current);
       }
+      break;
     }
+    prev = current;
+    current = current->next;
   }
 
   semaphore(signal_mutex[arena]);
   //END CRITICAL SECTION
+
+  if( offset < 0) {
+    //out of memory error
+    errno = ENOMEM;
+    return -1;
+  }
+
+  return offset;
   
-  errno = ENOSYS;
-  return -1;
 }
 
 /*
@@ -91,7 +117,38 @@ heap_ptr_t paralloc(size_t amt) {
  *    Frees the memory.
  */
 int parfree(heap_ptr_t offset) {
-  errno = ENOSYS;
-  return -1;
+  if( offset < 0 || offset >= HEAPSIZE) {
+    //bad argument
+    errno = EINVAL;
+    return -1;
+  }
+  pid_t pid = getpid();
+  int arena = pid % NUM_ARENAS;
+
+  //BEGIN CRITICAL SECTION
+  semaphore(wait_mutex[arena]);
+
+  linked_list* list = arenas[arena];
+  list_node* current = list->head;
+  list_node* prev = 0;
+  //first-fit algorithm
+  while( current) {
+    if( current->start <= offset && current->end > offset) {
+      //block is already free, this is bad!
+      errno = EINVAL;
+      return -1;
+    }
+    if( current->start > offset) {
+      if( prev && prev->end == offset)
+
+    }
+    prev = current;
+    current = current->next;
+  }
+  
+  semaphore(signal_mutex[arena]);
+  //END CRITICAL SECTION
+
+  return 0;
 }
 

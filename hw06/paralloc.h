@@ -5,6 +5,8 @@
  * This code is placed in the public domain.
  */
 
+#include <sys/sem.h>
+
 #ifndef PARALLOC_SEEN
 #define PARALLOC_SEEN
 
@@ -16,6 +18,7 @@ typedef int heap_ptr_t;
 void heap_init();
 heap_ptr_t paralloc(size_t amt);
 int parfree(heap_ptr_t);
+void semaphore( struct sembuf op);
 
 // Macros
 #define HEAPSIZE 4096*64 // in bytes | 4096 == one page

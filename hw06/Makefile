@@ -3,7 +3,7 @@ CC = gcc
 # -Wall : show all warnings
 FLAGS = -g -Wall -Werror
 LIBS = # None yet...
-SOURCE = main.c paralloc.c child.c
+SOURCE = main.c paralloc.c child.c list.c
 OUTPUT = main
 
 build: $(SOURCE)
